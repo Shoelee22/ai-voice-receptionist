@@ -1,0 +1,5 @@
+venv/
+models/
+leads.json
+*.wav
+__pycache__/
