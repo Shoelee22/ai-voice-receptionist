@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixalified Voice Receptionist — Demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
+  h1 { font-size: 22px; }
+  #micBtn { width: 120px; height: 120px; border-radius: 50%; border: none; font-size: 16px;
+            background: #2563eb; color: #fff; cursor: pointer; }
+  #micBtn.recording { background: #dc2626; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { transform: scale(1.06); } }
+  #status { margin: 16px 0; min-height: 24px; color: #555; }
+  .bubble { border: 1px solid #e5e5e5; border-radius: 12px; padding: 12px 16px; margin: 10px 0; }
+  .you { background: #f3f4f6; } .maya { background: #eff6ff; }
+  .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  #lat { font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+<h1>Talk to Maya — Pixalified AI Receptionist</h1>
+<p>Press the button, speak, press again to stop. Maya transcribes, thinks, and answers out loud.</p>
+<button id="micBtn">🎤 Speak</button>
+<div id="status">Idle.</div>
+<div id="log"></div>
+<div id="lat"></div>
+<script>
+const btn = document.getElementById('micBtn');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+const latEl = document.getElementById('lat');
+let rec = null, chunks = [];
+
+btn.onclick = async () => {
+  if (rec && rec.state === 'recording') { rec.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = [];
+    rec = new MediaRecorder(stream);
+    rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = sendTurn;
+    rec.start();
+    btn.classList.add('recording'); btn.textContent = '⏹ Stop';
+    statusEl.textContent = 'Listening…';
+  } catch (e) { statusEl.textContent = 'Microphone blocked: ' + e.message; }
+};
+
+async function sendTurn() {
+  btn.classList.remove('recording'); btn.textContent = '🎤 Speak';
+  statusEl.textContent = 'Thinking…';
+  const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+  const fd = new FormData();
+  fd.append('audio', blob, 'turn.webm');
+  try {
+    const r = await fetch('/api/turn', { method: 'POST', body: fd });
+    const d = await r.json();
+    addBubble('you', 'You', d.transcript);
+    addBubble('maya', 'Maya', d.reply_text + (d.tool ? '  [tool: ' + d.tool.name + ' ✓]' : ''));
+    const L = d.latency_ms;
+    latEl.textContent = `turn: ${(L.total/1000).toFixed(1)}s (stt ${L.stt}ms · llm ${L.llm}ms · tts ${L.tts}ms)`;
+    const wav = Uint8Array.from(atob(d.audio_b64), c => c.charCodeAt(0));
+    new Audio(URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }))).play();
+    statusEl.textContent = 'Idle.';
+  } catch (e) { statusEl.textContent = 'Error: ' + e.message; }
+}
+
+function addBubble(cls, who, text) {
+  const div = document.createElement('div');
+  div.className = 'bubble ' + cls;
+  div.innerHTML = '<div class="label">' + who + '</div>' + escapeHtml(text);
+  logEl.prepend(div);
+}
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+</script>
+</body>
+</html>
