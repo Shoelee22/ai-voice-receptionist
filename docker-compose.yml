@@ -1,0 +1,29 @@
+services:
+  voice:
+    build: .
+    ports:
+      - "8765:8765"
+    environment:
+      # Point at any OpenAI-compatible LLM endpoint. Default assumes
+      # llama-server (or Ollama) running on the Docker host.
+      LLM_API_URL: ${LLM_API_URL:-http://host.docker.internal:11435/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5-1.5b}
+    volumes:
+      # Persist downloaded STT/TTS models across restarts (~140 MB)
+      - voice-models:/app/models
+
+  # Optional: run the LLM brain in Docker too (CPU).
+  # Start with:  LLM_GGUF_PATH=/path/to/model.gguf docker compose --profile llm up
+  # Then point the voice service at it:
+  #   LLM_API_URL=http://llm:8080/v1 docker compose --profile llm up
+  llm:
+    image: ghcr.io/ggerganov/llama.cpp:server-cpu
+    profiles: ["llm"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${LLM_GGUF_PATH}:/model.gguf:ro
+    command: ["-m", "/model.gguf", "-t", "2", "-c", "1024", "--port", "8080", "--host", "0.0.0.0"]
+
+volumes:
+  voice-models:

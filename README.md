@@ -3,6 +3,24 @@
 Clean-room build. No cloud APIs, no API keys, no Jarvis code anywhere.
 Browser demo: press 🎤, speak, Maya transcribes, thinks, and answers out loud.
 
+## Run with Docker (recommended)
+
+```bash
+# 1. Start the voice server (models auto-download on first run, ~140 MB)
+docker compose up --build
+
+# 2. Point it at an LLM — any OpenAI-compatible endpoint:
+#    - llama-server on your machine: default just works
+#      (http://host.docker.internal:11435/v1)
+#    - Ollama:   LLM_API_URL=http://host.docker.internal:11434/v1 docker compose up
+#    - Or run the LLM in Docker too (needs a GGUF file):
+#      LLM_GGUF_PATH=/path/to/qwen2.5-1.5b-q4_k_m.gguf \
+#      LLM_API_URL=http://llm:8080/v1 \
+#      docker compose --profile llm up --build
+```
+
+Then open http://127.0.0.1:8765/ in a browser, allow the mic, press 🎤.
+
 ## Architecture
 
 ```

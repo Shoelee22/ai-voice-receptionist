@@ -1,0 +1,10 @@
+venv/
+models/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+leads.json
+appointments.json
+*.wav
+*.mp3
